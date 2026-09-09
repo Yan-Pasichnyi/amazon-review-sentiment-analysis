@@ -1,0 +1,19 @@
+data/**/*.csv
+data/*.sqlite
+data/*.zip
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PyCharm
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
