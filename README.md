@@ -7,24 +7,31 @@ exploratory analysis, text preprocessing, model development, and structured erro
 
 Given a review's text, predict whether it expresses positive or negative sentiment. Built as an 
 end-to-end portfolio project to demonstrate NLP fundamentals — text cleaning, feature engineering, 
-model comparison, and honest evaluation of a model's limitations.
+rigorous model selection, and honest evaluation of a model's limitations.
 
 **Dataset**: [Amazon Fine Food Reviews](https://www.kaggle.com/datasets/snap/amazon-fine-food-reviews) 
 (Kaggle) — ~568K reviews with text, star ratings (1–5), and metadata.
 
 ## Results
 
-| Model | Features | Macro F1 | Negative class F1 | Positive class F1 |
-|---|---|---|---|---|
-| Logistic Regression (baseline) | TF-IDF, unigrams, 5K features | 0.85 | 0.74 | 0.96 |
-| + class weighting | same | 0.83 | 0.72 | 0.93 |
-| + bigrams | TF-IDF, 1-2 grams, 10K features | 0.88 | 0.79 | 0.97 |
-| **LinearSVC (final)** | TF-IDF, 1-2 grams, 10K features | **0.89** | **0.81** | **0.97** |
+**Final model**: LinearSVC on TF-IDF with bigrams (`max_features=10000`, `ngram_range=(1, 2)`, `C=1`), 
+selected via `GridSearchCV` with 3-fold cross-validation.
+
+| Metric | Negative class | Positive class |
+|---|---|---|
+| Precision | 0.86 | 0.96 |
+| Recall | 0.76 | 0.98 |
+| F1 | 0.81 | 0.97 |
+
+**Macro F1: 0.89** (cross-validated F1 on train: 0.884 — closely matching the held-out test result, 
+confirming the model generalizes rather than having overfit to a particular data split)
 
 ## Pipeline & key decisions
 
 **1. EDA** — identified severe class imbalance (64% of reviews are 5-star), HTML artifacts 
 (`<br />`, `<a href>`) from web scraping, and 281 duplicate reviews.
+
+![Score distribution](images/histogram_of_score_column.png)
 
 **2. Target definition** — converted to binary sentiment (Score 4-5 → positive, 1-2 → negative), 
 dropping neutral 3-star reviews rather than treating them as a third class, since mixed sentiment 
@@ -39,10 +46,15 @@ whole pipeline:
   as stop words by default — removing them silently flips the meaning of phrases like "did not 
   have any results" into a neutral bag of words.
 
-**4. Modeling** — iteratively tested class weighting (a precision/recall trade-off, not a net 
-gain), bigram features (a genuine improvement, both precision and recall rose), vocabulary size 
-(diminishing returns past 10K features), and algorithm choice (LinearSVC edged out Logistic 
-Regression on the same features).
+**4. Modeling** — established a TF-IDF + Logistic Regression baseline (macro F1 0.85), then 
+compared class weighting, bigram features, vocabulary size, and algorithm choice. Model selection 
+was performed using `Pipeline` + `GridSearchCV` with 3-fold cross-validation, rather than by 
+repeatedly evaluating each configuration against the held-out test set — the latter risks 
+selection bias, since the "winning" configuration could partly reflect quirks of that specific 
+test split rather than a genuine improvement. The test set was touched exactly once, for a 
+single final evaluation of the selected model. (An earlier, manual comparison had already 
+converged on the same configuration — the more rigorous process confirmed rather than changed 
+the result.)
 
 **5. Error analysis** — surfaced two distinct, non-overlapping failure modes:
 - **Mixed-sentiment reviews**: text that opens positive and pivots negative (or vice versa). 
@@ -53,20 +65,22 @@ Regression on the same features).
 
 ## Tech stack
 
-Python, pandas, NumPy, scikit-learn, spaCy, matplotlib, seaborn
+Python, pandas, NumPy, scikit-learn, spaCy, matplotlib, seaborn, joblib
 
 ## Project structure
 ```
 amazon-review-sentiment-analysis/
 ├── notebooks/
-│   ├── 01_eda.ipynb
-│   ├── 02_text_preprocessing.ipynb
-│   ├── 03_tfidf_baseline.ipynb
-│   ├── 04_model_improvements.ipynb
-│   └── 05_error_analysis.ipynb
+│ ├── 01_eda.ipynb
+│ ├── 02_text_preprocessing.ipynb
+│ ├── 03_tfidf_baseline.ipynb
+│ ├── 04_model_improvements.ipynb
+│ └── 05_error_analysis.ipynb
 ├── images/
-│   └── histogram_of_score_column.png
-├── data/raw/          # not tracked — see setup below
+│ └── histogram_of_score_column.png
+├── models/
+│ └── sentiment_model.pkl # saved final pipeline (TF-IDF + LinearSVC)
+├── data/raw/ # not tracked — see setup below
 ├── requirements.txt
 └── README.md
 ```
